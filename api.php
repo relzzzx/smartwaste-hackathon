@@ -5,34 +5,51 @@ $user = "root";
 $pass = "";
 $dbname = "smartwaste_db";
 
-// Koneksi
+// Koneksi database
 $conn = new mysqli($host, $user, $pass, $dbname);
 if ($conn->connect_error) {
     die(json_encode(["status" => "error", "message" => "DB connection failed"]));
 }
 
-// Baca input JSON dari ESP32
+// Ambil JSON dari ESP32
 $data = json_decode(file_get_contents("php://input"), true);
 
-// Validasi data
-if (!isset($data['weight'], $data['distance'], $data['latitude'], $data['longitude'], $data['is_full'])) {
-    echo json_encode(["status" => "error", "message" => "Incomplete data"]);
-    exit;
+// Validasi: semua field harus ada
+$required = ['weight', 'distance', 'latitude', 'longitude', 'is_full'];
+foreach ($required as $field) {
+    if (!isset($data[$field])) {
+        echo json_encode(["status" => "error", "message" => "Field '$field' is missing"]);
+        exit;
+    }
 }
 
-// Ambil nilai dari JSON
+// Ambil nilai & cast
 $weight = (float) $data['weight'];
 $distance = (float) $data['distance'];
 $latitude = (float) $data['latitude'];
 $longitude = (float) $data['longitude'];
-$is_full = (bool) $data['is_full'];
+$is_full = filter_var($data['is_full'], FILTER_VALIDATE_BOOLEAN);
+
+// Validasi rentang nilai
+if ($weight < 0 || $weight > 100) {
+    echo json_encode(["status" => "error", "message" => "Berat tidak valid"]);
+    exit;
+}
+if ($distance < 0 || $distance > 100) {
+    echo json_encode(["status" => "error", "message" => "Jarak tidak valid"]);
+    exit;
+}
+if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+    echo json_encode(["status" => "error", "message" => "Koordinat GPS tidak valid"]);
+    exit;
+}
 
 // Simpan ke database
 $stmt = $conn->prepare("INSERT INTO smartwaste (weight, distance, latitude, longitude, is_full) VALUES (?, ?, ?, ?, ?)");
 $stmt->bind_param("ddddi", $weight, $distance, $latitude, $longitude, $is_full);
 $stmt->execute();
 
-// Kirim notifikasi Telegram kalau penuh
+// Kirim notifikasi jika penuh
 if ($is_full) {
     $bot_token = "YOUR_BOT_TOKEN";
     $chat_id = "YOUR_CHAT_ID";
@@ -40,5 +57,5 @@ if ($is_full) {
     file_get_contents("https://api.telegram.org/bot{$bot_token}/sendMessage?chat_id={$chat_id}&text=" . urlencode($message));
 }
 
-// Response ke ESP32
-echo json_encode(["status" => "ok"]);
+// Sukses
+echo json_encode(["status" => "ok", "message" => "Data tersimpan"]);
