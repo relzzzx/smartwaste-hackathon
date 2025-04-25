@@ -3,7 +3,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$dbname = "smartwaste_db";
+$dbname = "smartwaste";
 
 // Koneksi database
 $conn = new mysqli($host, $user, $pass, $dbname);
