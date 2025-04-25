@@ -3,7 +3,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$dbname = "smartwaste_db";
+$dbname = "smartwaste";
 
 // Koneksi database
 $conn = new mysqli($host, $user, $pass, $dbname);
@@ -23,32 +23,12 @@ foreach ($required as $field) {
     }
 }
 
-// Ambil nilai & ubah tipe data
+// Ambil nilai dari JSON
 $weight = (float) $data['weight'];
 $distance = (float) $data['distance'];
 $latitude = (float) $data['latitude'];
 $longitude = (float) $data['longitude'];
-$is_full = filter_var($data['is_full'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
-// Cek apakah parsing boolean gagal
-if (!is_bool($is_full)) {
-    echo json_encode(["status" => "error", "message" => "is_full harus boolean"]);
-    exit;
-}
-
-// Validasi nilai masuk akal
-if ($weight < 0 || $weight > 100) {
-    echo json_encode(["status" => "error", "message" => "Berat tidak valid"]);
-    exit;
-}
-if ($distance < 0 || $distance > 100) {
-    echo json_encode(["status" => "error", "message" => "Jarak tidak valid"]);
-    exit;
-}
-if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
-    echo json_encode(["status" => "error", "message" => "Koordinat GPS tidak valid"]);
-    exit;
-}
+$is_full = (bool) $data['is_full'];
 
 // Simpan ke database
 $stmt = $conn->prepare("INSERT INTO smartwaste (weight, distance, latitude, longitude, is_full) VALUES (?, ?, ?, ?, ?)");
@@ -63,6 +43,5 @@ if ($is_full) {
     file_get_contents("https://api.telegram.org/bot{$bot_token}/sendMessage?chat_id={$chat_id}&text=" . urlencode($message));
 }
 
-// Balas ke ESP32
-echo json_encode(["status" => "ok", "message" => "Data tersimpan"]);
-?>
+// Response ke ESP32
+echo json_encode(["status" => "ok"]);
